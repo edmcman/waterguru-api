@@ -7,7 +7,7 @@
 # not properly implement a token refresh option (hint hint, please add)
 #
 # sudo apt-get install python3 python3-pip 
-# sudo pip3 install flask requests_aws4auth boto3 warrant.aws_srp warrant
+# sudo pip3 install flask requests_aws4auth boto3 pycognito
 #
 # Set your email, password and port to run this service on.
 #
@@ -18,9 +18,9 @@
 from flask import Flask, render_template, flash, request, jsonify, Response
 import os
 import logging
-from warrant import Cognito
+from pycognito import Cognito
 import boto3
-from warrant.aws_srp import AWSSRP
+from pycognito.aws_srp import AWSSRP
 import requests
 import logging
 from requests_aws4auth import AWS4Auth
@@ -32,9 +32,9 @@ app.config.from_object(__name__)
 app.config['SECRET_KEY'] = '32624076087108375603827608353'
 
 config = {
-    "port": "WG_PORT", # port for your service to run on
-	"user": "WG_USER",
-	"pass": "WG_PASS"
+    "port": 'WG_PORT', # port for your service to run on
+	"user": 'WG_USER',
+	"pass": 'WG_PASS'
 }
 
 def doWg():
@@ -46,9 +46,11 @@ def doWg():
 
 	boto3.setup_default_session(region_name = region_name)
 	client = boto3.client('cognito-idp', region_name=region_name)
-	# REFRESH_TOKEN_AUTH flow doesn't exist yet in warrant lib https://github.com/capless/warrant/issues/33
-    # would love it if someone could figure out proper refresh. 
-	aws = AWSSRP(username=config['user'], password=config['pass'], pool_id=pool_id, client_id=client_id, client=client)
+	
+	# Use pycognito's AWSSRP for authentication
+	# pycognito supports token refresh via check_token() method when needed
+	aws = AWSSRP(username=config['user'], password=config['pass'], pool_id=pool_id, 
+	             client_id=client_id, client=client)
 	tokens = aws.authenticate_user()
 
 	id_token = tokens['AuthenticationResult']['IdToken']
@@ -56,7 +58,9 @@ def doWg():
 	access_token = tokens['AuthenticationResult']['AccessToken']
 	token_type = tokens['AuthenticationResult']['TokenType']
 
-	u=Cognito(pool_id,client_id,id_token=id_token,refresh_token=refresh_token,access_token=access_token)
+	# Create Cognito instance to get user info
+	u = Cognito(pool_id, client_id, id_token=id_token, refresh_token=refresh_token, 
+	           access_token=access_token, user_pool_region=region_name)
 	user = u.get_user()
 	userId = user._metadata['username']
 
@@ -95,6 +99,6 @@ def api():
 		return Response(val, mimetype='application/json')
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=config['port'], debug=False)
+    app.run(host='0.0.0.0', port=int(config['port']), debug=False)
 
 

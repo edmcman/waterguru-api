@@ -21,6 +21,9 @@ it via:
 <code> # docker exec -it waterguru-api /bin/bash</code> or 
 <code># docker run -it waterguru-api /bin/bash</code> and then poke around and
 
+# Dependencies
+This library now uses [pycognito](https://github.com/NabuCasa/pycognito) instead of the deprecated warrant library for AWS Cognito authentication.
+
 # Usage
 You'll need to get the IP address of your docker host, then navigate to: <i>http://your.ip.address:53255/api/wg</i> - this should show you json output from WaterGuru
 
